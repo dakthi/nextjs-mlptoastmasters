@@ -13,6 +13,10 @@
     "build:check": "npm run type-check && npm run lint && npm run build",
     "pre-deploy": "npm run build:check",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:upsert": "tsx prisma/seed-upsert.ts",
+    "db:deploy": "npx prisma migrate deploy && npm run db:seed:upsert",
+    "db:reset": "npx prisma migrate reset --force && npm run db:seed:upsert",
+    "postinstall": "npx prisma generate",
     "create-admin": "tsx src/lib/create-admin.ts"
   },
   "repository": {
