@@ -142,19 +142,25 @@ volumes:
 
 ### Docker Build Issues
 
-#### npm ci fails
+#### npm ci fails or Prisma schema not found
 ```bash
-# Option 1: Use simple Dockerfile
+# Option 1: Use robust Dockerfile (recommended)
+docker build -f Dockerfile.robust -t mlp-toastmasters .
+
+# Option 2: Use simple Dockerfile  
 docker build -f Dockerfile.simple -t mlp-toastmasters .
 
-# Option 2: Clean and regenerate package-lock.json
+# Option 3: Clean and regenerate package-lock.json
 rm -f package-lock.json
 npm install
 docker build -t mlp-toastmasters .
-
-# Option 3: Use npm install instead of npm ci
-# Edit Dockerfile line 15: RUN npm install
 ```
+
+#### Prisma postinstall issues
+The issue occurs when `npm install` runs `prisma generate` but schema.prisma isn't copied yet.
+- `Dockerfile.robust` - Installs deps with `--ignore-scripts` then runs `prisma generate` manually
+- `Dockerfile.simple` - Copies prisma schema before npm install
+- Main `Dockerfile` - Fixed to copy prisma schema before dependencies
 
 #### Build context too large
 ```bash

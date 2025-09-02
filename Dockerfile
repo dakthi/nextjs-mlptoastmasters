@@ -7,14 +7,15 @@ WORKDIR /app
 # Install dependencies for native compilation
 RUN apk add --no-cache libc6-compat
 
-# Install dependencies first (cached if package*.json doesn't change)
+# Copy package files and prisma schema first
 COPY package*.json ./
+COPY prisma ./prisma
 
 # Install dependencies with fallback approach
 RUN npm cache clean --force && \
     (npm ci --only=production=false || npm install)
 
-# Copy application code (but .dockerignore will exclude junk like node_modules)
+# Copy rest of application code
 COPY . .
 
 # Set dummy DATABASE_URL for build (prevents Prisma validation errors)
