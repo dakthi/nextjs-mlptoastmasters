@@ -1,0 +1,358 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE TOASTMASTERS MODELS
+// ============================================
+
+model Club {
+  id               Int               @id @default(autoincrement())
+  clubNumber       String            @unique @map("club_number")
+  name             String
+  charterDate      DateTime          @map("charter_date")
+  district         String?
+  area             String?
+  division         String?
+  meetingDay       String?           @map("meeting_day")
+  meetingTime      String?           @map("meeting_time")
+  meetingLocation  String?           @map("meeting_location")
+  meetingFormat    String?           @map("meeting_format") // In-person, Online, Hybrid
+  description      String?
+  websiteUrl       String?           @map("website_url")
+  contactEmail     String?           @map("contact_email")
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  
+  members          Member[]
+  meetings         Meeting[]
+  officers         ClubOfficer[]
+  
+  @@map("clubs")
+}
+
+model Member {
+  id                  Int                   @id @default(autoincrement())
+  memberId            String                @unique @map("member_id")
+  firstName           String                @map("first_name")
+  lastName            String                @map("last_name")
+  email               String                @unique
+  phone               String?
+  joinDate            DateTime              @map("join_date")
+  membershipType      String                @default("regular") @map("membership_type") // regular, new, reinstated, dual
+  membershipStatus    String                @default("active") @map("membership_status") // active, inactive, suspended
+  pathwayId           Int?                  @map("pathway_id")
+  currentLevel        Int                   @default(1) @map("current_level")
+  clubId              Int                   @map("club_id")
+  userId              String?               @unique @map("user_id")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  
+  club                Club                  @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user                User?                 @relation(fields: [userId], references: [id])
+  pathway             EducationalPathway?   @relation(fields: [pathwayId], references: [id])
+  speeches            Speech[]
+  evaluations         Evaluation[]
+  meetingRoles        MeetingRole[]
+  officerPositions    ClubOfficer[]
+  achievements        MemberAchievement[]
+  
+  @@index([clubId])
+  @@map("members")
+}
+
+model Meeting {
+  id              Int            @id @default(autoincrement())
+  clubId          Int            @map("club_id")
+  meetingNumber   Int            @map("meeting_number")
+  meetingDate     DateTime       @map("meeting_date")
+  theme           String?
+  toastmaster     String?        // Name of the Toastmaster of the meeting
+  generalEvaluator String?       @map("general_evaluator")
+  timerReport     String?        @map("timer_report")
+  ahCounter       String?        @map("ah_counter")
+  grammarian      String?
+  notes           String?
+  status          String         @default("scheduled") // scheduled, completed, cancelled
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  
+  club            Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  speeches        Speech[]
+  roles           MeetingRole[]
+  
+  @@unique([clubId, meetingNumber])
+  @@index([clubId])
+  @@map("meetings")
+}
+
+model Speech {
+  id              Int          @id @default(autoincrement())
+  meetingId       Int          @map("meeting_id")
+  speakerId       Int          @map("speaker_id")
+  speechTitle     String       @map("speech_title")
+  projectCode     String?      @map("project_code")
+  projectTitle    String?      @map("project_title")
+  pathwayLevel    Int?         @map("pathway_level")
+  duration        Int?         // in minutes
+  actualTime      String?      @map("actual_time") // actual time taken
+  notes           String?
+  completed       Boolean      @default(false)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  
+  meeting         Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  speaker         Member       @relation(fields: [speakerId], references: [id])
+  evaluations     Evaluation[]
+  
+  @@index([meetingId])
+  @@index([speakerId])
+  @@map("speeches")
+}
+
+model Evaluation {
+  id              Int      @id @default(autoincrement())
+  speechId        Int      @map("speech_id")
+  evaluatorId     Int      @map("evaluator_id")
+  commendations   String?
+  recommendations String?
+  overallScore    Int?     @map("overall_score") // 1-5 rating
+  timeUsed        String?  @map("time_used")
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  speech          Speech   @relation(fields: [speechId], references: [id], onDelete: Cascade)
+  evaluator       Member   @relation(fields: [evaluatorId], references: [id])
+  
+  @@index([speechId])
+  @@index([evaluatorId])
+  @@map("evaluations")
+}
+
+model MeetingRole {
+  id           Int      @id @default(autoincrement())
+  meetingId    Int      @map("meeting_id")
+  memberId     Int      @map("member_id")
+  roleType     String   @map("role_type") // toastmaster, evaluator, timer, ah-counter, grammarian, table-topics-master
+  description  String?
+  completed    Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  meeting      Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  member       Member   @relation(fields: [memberId], references: [id])
+  
+  @@unique([meetingId, memberId, roleType])
+  @@index([meetingId])
+  @@index([memberId])
+  @@map("meeting_roles")
+}
+
+// ============================================
+// EDUCATIONAL PATHWAYS & ACHIEVEMENTS
+// ============================================
+
+model EducationalPathway {
+  id          Int                      @id @default(autoincrement())
+  name        String                   @unique
+  description String?
+  levels      Int                      @default(5)
+  active      Boolean                  @default(true)
+  
+  members     Member[]
+  projects    PathwayProject[]
+  
+  @@map("educational_pathways")
+}
+
+model PathwayProject {
+  id             Int                @id @default(autoincrement())
+  pathwayId      Int                @map("pathway_id")
+  level          Int
+  projectNumber  Int                @map("project_number")
+  projectCode    String             @unique @map("project_code")
+  title          String
+  description    String?
+  minDuration    Int?               @map("min_duration") // in minutes
+  maxDuration    Int?               @map("max_duration") // in minutes
+  elective       Boolean            @default(false)
+  
+  pathway        EducationalPathway @relation(fields: [pathwayId], references: [id])
+  
+  @@unique([pathwayId, level, projectNumber])
+  @@index([pathwayId])
+  @@map("pathway_projects")
+}
+
+model MemberAchievement {
+  id             Int      @id @default(autoincrement())
+  memberId       Int      @map("member_id")
+  achievementType String  @map("achievement_type") // CC, CL, ACB, ACS, ACG, DTM, Level1, Level2, etc.
+  achievementDate DateTime @map("achievement_date")
+  description    String?
+  certificateUrl String?  @map("certificate_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  member         Member   @relation(fields: [memberId], references: [id])
+  
+  @@index([memberId])
+  @@map("member_achievements")
+}
+
+// ============================================
+// CLUB ADMINISTRATION
+// ============================================
+
+model ClubOfficer {
+  id           Int      @id @default(autoincrement())
+  clubId       Int      @map("club_id")
+  memberId     Int      @map("member_id")
+  position     String   // President, VP Education, VP Membership, VP PR, Secretary, Treasurer, SAA
+  termStart    DateTime @map("term_start")
+  termEnd      DateTime @map("term_end")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  club         Club     @relation(fields: [clubId], references: [id])
+  member       Member   @relation(fields: [memberId], references: [id])
+  
+  @@unique([clubId, position, termStart])
+  @@index([clubId])
+  @@index([memberId])
+  @@map("club_officers")
+}
+
+// ============================================
+// SITE CONTENT & SETTINGS
+// ============================================
+
+model Announcement {
+  id           Int      @id @default(autoincrement())
+  title        String
+  content      String
+  priority     String   @default("normal") // high, normal, low
+  expiresAt    DateTime? @map("expires_at")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  @@map("announcements")
+}
+
+model Resource {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  category     String   // meeting-resources, member-resources, officer-resources
+  fileUrl      String?  @map("file_url")
+  linkUrl      String?  @map("link_url")
+  accessLevel  String   @default("member") @map("access_level") // public, member, officer
+  displayOrder Int      @default(0) @map("display_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  @@map("resources")
+}
+
+model SiteSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String?
+  type        String
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("site_settings")
+}
+
+model FaqItem {
+  id           Int      @id @default(autoincrement())
+  question     String
+  answer       String
+  category     String   @default("General")
+  displayOrder Int      @default(0) @map("display_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  @@map("faq_items")
+}
+
+model Testimonial {
+  id           Int      @id @default(autoincrement())
+  name         String
+  role         String?
+  content      String
+  displayOrder Int      @default(0) @map("display_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  @@map("testimonials")
+}
+
+// ============================================
+// AUTHENTICATION (NextAuth)
+// ============================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  password      String?
+  role          String    @default("member") // admin, officer, member, guest
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  accounts      Account[]
+  sessions      Session[]
+  member        Member?
+  
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+  
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
