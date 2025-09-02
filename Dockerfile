@@ -4,9 +4,15 @@ FROM node:18-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Install dependencies for native compilation
+RUN apk add --no-cache libc6-compat
+
 # Install dependencies first (cached if package*.json doesn't change)
 COPY package*.json ./
-RUN npm ci
+
+# Install dependencies with fallback approach
+RUN npm cache clean --force && \
+    (npm ci --only=production=false || npm install)
 
 # Copy application code (but .dockerignore will exclude junk like node_modules)
 COPY . .

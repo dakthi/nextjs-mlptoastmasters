@@ -78,16 +78,47 @@ npm start
 4. Run database setup: `npm run db:deploy`
 
 ### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npx prisma generate
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "start"]
+
+#### Standard Dockerfile (Multi-stage)
+Use the main `Dockerfile` for optimized production builds.
+
+#### Simple Dockerfile (For debugging)
+If the main Dockerfile fails, use `Dockerfile.simple`:
+```bash
+docker build -f Dockerfile.simple -t mlp-toastmasters .
+```
+
+#### Docker Compose (Recommended)
+```yaml
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mlptoastmasters_cms
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@db:5432/mlptoastmasters_cms"
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXTAUTH_SECRET: "your-secret-here"
+    depends_on:
+      - db
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  postgres_data:
+  uploads:
 ```
 
 ## Important Notes
@@ -108,6 +139,36 @@ CMD ["npm", "start"]
 - **Announcements**: Sample club announcements
 
 ## Troubleshooting
+
+### Docker Build Issues
+
+#### npm ci fails
+```bash
+# Option 1: Use simple Dockerfile
+docker build -f Dockerfile.simple -t mlp-toastmasters .
+
+# Option 2: Clean and regenerate package-lock.json
+rm -f package-lock.json
+npm install
+docker build -t mlp-toastmasters .
+
+# Option 3: Use npm install instead of npm ci
+# Edit Dockerfile line 15: RUN npm install
+```
+
+#### Build context too large
+```bash
+# Check .dockerignore excludes:
+echo "node_modules
+.git
+.next/cache" >> .dockerignore
+```
+
+#### Node.js version issues
+```bash
+# Use specific Node version in Dockerfile:
+FROM node:18.17.0-alpine
+```
 
 ### Migration Issues
 ```bash

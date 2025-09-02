@@ -1,5 +1,6 @@
 node_modules
-npm-debug.log
+npm-debug.log*
+.npm
 Dockerfile
 docker-compose.yml
 .dockerignore
@@ -8,3 +9,11 @@ docker-compose.yml
 .env
 .DS_Store
 .claude
+README.md
+coverage
+.nyc_output
+*.tgz
+*.tar.gz
+.cache
+.vercel
+.next/cache
